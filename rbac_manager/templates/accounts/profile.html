@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% load rbac_tags %}
+
+{% block title %}My Profile — RBAC Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title"><i class="bi bi-person-circle me-2"></i>My Profile</h1>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'accounts:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Profile</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- Profile card -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body text-center py-4">
+        <div class="user-avatar-lg mx-auto mb-3 d-flex align-items-center justify-content-center
+             rounded-circle text-white fw-bold fs-2"
+             style="width:90px;height:90px;background:linear-gradient(135deg,#3b82f6,#6d28d9);">
+          {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
+        </div>
+        <h5 class="fw-bold mb-1">{{ request.user.get_full_name|default:request.user.username }}</h5>
+        <p class="text-muted small mb-2">@{{ request.user.username }}</p>
+        {% if request.user.is_superuser %}
+        <span class="badge bg-danger mb-2"><i class="bi bi-shield-fill-check me-1"></i>Superuser</span>
+        {% endif %}
+        {% if profile.employee_id %}
+        <div class="text-muted small mb-1">
+          <i class="bi bi-person-badge me-1"></i>ID: {{ profile.employee_id }}
+        </div>
+        {% endif %}
+        {% if profile.department %}
+        <div class="text-muted small mb-1">
+          <i class="bi bi-building me-1"></i>{{ profile.department.name }}
+        </div>
+        {% endif %}
+        {% if profile.phone %}
+        <div class="text-muted small mb-1">
+          <i class="bi bi-telephone me-1"></i>{{ profile.phone }}
+        </div>
+        {% endif %}
+        {% if request.user.email %}
+        <div class="text-muted small mb-3">
+          <i class="bi bi-envelope me-1"></i>{{ request.user.email }}
+        </div>
+        {% endif %}
+        <div class="text-muted small">
+          Member since {{ request.user.date_joined|date:"d M Y" }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Roles card -->
+    <div class="card mt-4">
+      <div class="card-header"><i class="bi bi-shield-lock me-2"></i>My Roles</div>
+      <div class="card-body">
+        {% for role in profile.roles.all %}
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="badge bg-primary">{{ role.name }}</span>
+          <small class="text-muted">{{ role.permissions.count }} perms</small>
+        </div>
+        {% empty %}
+        <p class="text-muted small mb-0">No roles assigned. Contact an administrator.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Permissions & activity -->
+  <div class="col-lg-8">
+
+    <!-- Permissions -->
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-key me-2"></i>My Permissions</span>
+        <span class="badge bg-secondary">{{ profile.get_all_permissions|length }} total</span>
+      </div>
+      <div class="card-body">
+        {% if request.user.is_superuser %}
+        <div class="alert alert-warning py-2 mb-0">
+          <i class="bi bi-shield-fill-check me-1"></i>
+          <strong>Superuser:</strong> You have unrestricted access to all resources.
+        </div>
+        {% else %}
+        {% regroup profile.get_all_permissions|dictsort:"resource.name" by resource as resource_groups %}
+        <div class="row g-2">
+          {% for perm in profile.get_all_permissions %}
+          <div class="col-auto">
+            <div class="d-flex align-items-center gap-1 border rounded px-2 py-1 bg-light small">
+              <span class="action-badge action-{{ perm.action }}">{{ perm.action }}</span>
+              <span>{{ perm.resource.name }}</span>
+            </div>
+          </div>
+          {% empty %}
+          <div class="col-12">
+            <p class="text-muted mb-0">No permissions assigned yet.</p>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Recent access log -->
+    <div class="card">
+      <div class="card-header"><i class="bi bi-clock-history me-2"></i>My Recent Activity</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Resource</th>
+                <th>Action</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in my_logs %}
+              <tr>
+                <td class="small text-muted text-nowrap">{{ log.timestamp|date:"d M H:i" }}</td>
+                <td class="small">{{ log.resource }}</td>
+                <td>
+                  <span class="action-badge action-{{ log.action }}">{{ log.action }}</span>
+                </td>
+                <td>
+                  {% if log.success %}
+                    <span class="badge bg-success">Granted</span>
+                  {% else %}
+                    <span class="badge bg-danger">Denied</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-4">No activity recorded yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% if request.user|has_perm:'Access Logs:VIEW' %}
+      <div class="card-footer">
+        <a href="{% url 'accounts:access_logs' %}?username={{ request.user.username }}"
+           class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-journal-text me-1"></i>View Full Log
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+  .action-badge {
+    display:inline-block;font-size:.68rem;font-weight:700;
+    padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.03em;
+  }
+  .action-VIEW    {background:#dbeafe;color:#1d4ed8}
+  .action-CREATE  {background:#dcfce7;color:#15803d}
+  .action-EDIT    {background:#fef9c3;color:#854d0e}
+  .action-DELETE  {background:#fee2e2;color:#b91c1c}
+  .action-EXPORT  {background:#ede9fe;color:#6d28d9}
+  .action-APPROVE {background:#ffedd5;color:#c2410c}
+</style>
+{% endblock %}

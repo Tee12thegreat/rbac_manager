@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% load rbac_tags %}
+
+{% block title %}Access Logs — RBAC Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title"><i class="bi bi-journal-text me-2"></i>Access Logs</h1>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'accounts:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Access Logs</li>
+      </ol>
+    </nav>
+  </div>
+  {% if request.user|has_perm:'Access Logs:EXPORT' %}
+  <a href="{% url 'accounts:export_access_logs' %}?{{ request.GET.urlencode }}"
+     class="btn btn-outline-success">
+    <i class="bi bi-download me-1"></i>Export CSV
+  </a>
+  {% endif %}
+</div>
+
+<!-- Filter card -->
+<div class="card mb-4">
+  <div class="card-header" id="filterHeader" style="cursor:pointer;"
+       data-bs-toggle="collapse" data-bs-target="#filterBody">
+    <i class="bi bi-funnel me-2"></i>Filters
+    <i class="bi bi-chevron-down float-end mt-1"></i>
+  </div>
+  <div id="filterBody" class="collapse {% if request.GET %}show{% endif %}">
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Date From</label>
+          {{ form.date_from }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Date To</label>
+          {{ form.date_to }}
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">Username</label>
+          {{ form.username }}
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">Resource</label>
+          {{ form.resource }}
+        </div>
+        <div class="col-md-1">
+          <label class="form-label small fw-semibold">Action</label>
+          {{ form.action }}
+        </div>
+        <div class="col-md-1">
+          <label class="form-label small fw-semibold">Status</label>
+          {{ form.status }}
+        </div>
+        <div class="col-12 d-flex gap-2">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-search me-1"></i>Filter
+          </button>
+          <a href="{% url 'accounts:access_logs' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Logs table -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-list-ul me-2"></i>Log Entries</span>
+    <span class="text-muted small">{{ page_obj.paginator.count }} total</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>User</th>
+            <th>Resource</th>
+            <th>Action</th>
+            <th>IP Address</th>
+            <th>Status</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in page_obj %}
+          <tr class="{% if not log.success %}table-danger{% endif %}">
+            <td class="text-nowrap small">
+              <span title="{{ log.timestamp }}">{{ log.timestamp|date:"d M Y H:i:s" }}</span>
+            </td>
+            <td>
+              <span class="fw-semibold">{{ log.username }}</span>
+            </td>
+            <td>{{ log.resource }}</td>
+            <td>
+              <span class="action-badge action-{{ log.action }}">{{ log.action }}</span>
+            </td>
+            <td class="small text-muted">{{ log.ip_address|default:"—" }}</td>
+            <td>
+              {% if log.success %}
+                <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>Granted</span>
+              {% else %}
+                <span class="badge bg-danger"><i class="bi bi-x-lg me-1"></i>Denied</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">{{ log.reason|default:"—"|truncatechars:50 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">
+              <i class="bi bi-journal-x fs-3 d-block mb-2"></i>No log entries match your filters.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="card-footer d-flex justify-content-between align-items-center">
+    <small class="text-muted">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+      &nbsp;·&nbsp; {{ page_obj.paginator.count }} records
+    </small>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+          {% if num == page_obj.number %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+          {% elif num|add:"-2" <= page_obj.number and num|add:"2" >= page_obj.number %}
+          <li class="page-item">
+            <a class="page-link" href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+          </li>
+          {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+  .action-badge {
+    display:inline-block;font-size:.68rem;font-weight:700;
+    padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.03em;
+  }
+  .action-VIEW    {background:#dbeafe;color:#1d4ed8}
+  .action-CREATE  {background:#dcfce7;color:#15803d}
+  .action-EDIT    {background:#fef9c3;color:#854d0e}
+  .action-DELETE  {background:#fee2e2;color:#b91c1c}
+  .action-EXPORT  {background:#ede9fe;color:#6d28d9}
+  .action-APPROVE {background:#ffedd5;color:#c2410c}
+</style>
+{% endblock %}

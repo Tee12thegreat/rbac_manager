@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}{{ target_user.username }} – RBAC Manager{% endblock %}
+{% block page_title %}User Detail{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'accounts:user_list' %}">Users</a></li>
+<li class="breadcrumb-item active">{{ target_user.username }}</li>
+{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card p-4 text-center">
+      <div style="width:72px;height:72px;background:#eff6ff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:#2563eb;margin:0 auto 14px;">{{ target_user.username|first|upper }}</div>
+      <h5 class="fw-700">{{ target_user.get_full_name|default:target_user.username }}</h5>
+      <p class="text-muted mb-2">{{ target_user.email }}</p>
+      {% if target_user.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}
+      {% if target_user.is_superuser %}<span class="badge bg-dark ms-1">Superuser</span>{% endif %}
+      <hr>
+      <dl class="text-start small">
+        <dt class="text-muted">Employee ID</dt><dd>{{ profile.employee_id|default:"—" }}</dd>
+        <dt class="text-muted">Department</dt><dd>{{ profile.department|default:"—" }}</dd>
+        <dt class="text-muted">Phone</dt><dd>{{ profile.phone|default:"—" }}</dd>
+        <dt class="text-muted">Joined</dt><dd>{{ target_user.date_joined|date:"d M Y" }}</dd>
+      </dl>
+      <div class="d-flex gap-2 mt-2">
+        <a href="{% url 'accounts:user_edit' target_user.pk %}" class="btn btn-primary btn-sm flex-fill"><i class="bi bi-pencil me-1"></i>Edit</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-person-badge me-2"></i>Assigned Roles & Permissions</div>
+      <div class="card-body">
+        {% for role in profile.roles.all %}
+        <div class="d-flex align-items-start gap-3 mb-3 p-3 border rounded">
+          <div><span class="badge bg-primary fs-6 px-3 py-2">{{ role.name }}</span></div>
+          <div class="flex-fill">
+            <p class="text-muted small mb-2">{{ role.description }}</p>
+            <div class="d-flex flex-wrap gap-1">
+              {% for perm in role.permissions.all %}
+              <span class="badge bg-light text-dark border" style="font-size:.7rem;">{{ perm }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% empty %}<p class="text-muted">No roles assigned.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-clock-history me-2"></i>Recent Activity</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Resource</th><th>Action</th><th>Status</th><th>Time</th></tr></thead>
+          <tbody>
+          {% for log in user_logs %}
+          <tr>
+            <td>{{ log.resource }}</td>
+            <td><span class="badge bg-light text-dark border">{{ log.action }}</span></td>
+            <td>{% if log.success %}<span class="badge bg-success">OK</span>{% else %}<span class="badge bg-danger">Denied</span>{% endif %}</td>
+            <td class="text-muted-sm">{{ log.timestamp|date:"d M H:i" }}</td>
+          </tr>
+          {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">No activity.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

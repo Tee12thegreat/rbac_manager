@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% load rbac_tags %}
+{% block title %}Users – RBAC Manager{% endblock %}
+{% block page_title %}User Management{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'accounts:dashboard' %}">Home</a></li>
+<li class="breadcrumb-item active">Users</li>
+{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <form class="d-flex gap-2" method="get">
+    <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Search users..." style="width:240px;">
+    <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+    {% if q %}<a href="{% url 'accounts:user_list' %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></a>{% endif %}
+  </form>
+  {% if is_superuser or request.user|has_perm:'User Management:CREATE' %}
+  <a href="{% url 'accounts:user_create' %}" class="btn btn-primary btn-sm"><i class="bi bi-person-plus-fill me-1"></i>Add User</a>
+  {% endif %}
+</div>
+<div class="card table-card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>User</th><th>Employee ID</th><th>Department</th><th>Roles</th><th>Status</th><th>Joined</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+      {% for user in page_obj %}
+      <tr>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <div style="width:32px;height:32px;background:#eff6ff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#2563eb;">{{ user.username|first|upper }}</div>
+            <div><div class="fw-600">{{ user.get_full_name|default:user.username }}</div><div class="text-muted-sm">{{ user.email }}</div></div>
+          </div>
+        </td>
+        <td class="text-muted-sm">{% if user.profile.employee_id %}{{ user.profile.employee_id }}{% else %}—{% endif %}</td>
+        <td>{% if user.profile.department %}{{ user.profile.department }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td>
+          {% for role in user.profile.roles.all %}<span class="badge bg-primary me-1">{{ role.name }}</span>{% empty %}<span class="text-muted">No role</span>{% endfor %}
+          {% if user.is_superuser %}<span class="badge bg-dark">Superuser</span>{% endif %}
+        </td>
+        <td>{% if user.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
+        <td class="text-muted-sm">{{ user.date_joined|date:"d M Y" }}</td>
+        <td class="text-end">
+          <a href="{% url 'accounts:user_detail' user.pk %}" class="btn btn-sm btn-outline-secondary me-1"><i class="bi bi-eye"></i></a>
+          {% if is_superuser or request.user|has_perm:'User Management:EDIT' %}
+          <a href="{% url 'accounts:user_edit' user.pk %}" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
+          {% endif %}
+          {% if is_superuser or request.user|has_perm:'User Management:DELETE' %}{% if user.pk != request.user.pk %}
+          <a href="{% url 'accounts:user_delete' user.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i></a>
+          {% endif %}{% endif %}
+        </td>
+      </tr>
+      {% empty %}<tr><td colspan="7" class="text-center py-5 text-muted">No users found.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

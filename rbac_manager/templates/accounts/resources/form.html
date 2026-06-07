@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}New Resource — RBAC Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title"><i class="bi bi-folder-plus me-2"></i>New Resource</h1>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'accounts:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:resource_list' %}">Resources</a></li>
+        <li class="breadcrumb-item active">New</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-folder2 me-2"></i>Resource Details</div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Resource Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                   value="{{ form.name.value|default:'' }}" required placeholder="e.g. Employee Records">
+            {% for err in form.name.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
+            <small class="text-muted">Use a clear, descriptive name. This is used in permission checks.</small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Module / Category</label>
+            <input type="text" name="module" class="form-control"
+                   value="{{ form.module.value|default:'' }}" placeholder="e.g. HR, Finance, IT">
+            <small class="text-muted">Group related resources under a module name.</small>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Description</label>
+            <textarea name="description" class="form-control" rows="3"
+                      placeholder="What does this resource represent?">{{ form.description.value|default:'' }}</textarea>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-key me-1"></i>Allowed Actions <span class="text-danger">*</span>
+            </label>
+            <div class="row g-2">
+              {% for val, label in form.actions.field.choices %}
+              <div class="col-6 col-md-4">
+                <div class="form-check action-option p-2 border rounded">
+                  <input class="form-check-input" type="checkbox" name="actions"
+                         value="{{ val }}" id="act_{{ val }}"
+                         {% if val in form.actions.value %}checked{% endif %}>
+                  <label class="form-check-label d-flex align-items-center gap-2" for="act_{{ val }}">
+                    <span class="action-badge action-{{ val }}">{{ val }}</span>
+                    <span class="small">{{ label }}</span>
+                  </label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% if form.actions.errors %}
+            <div class="text-danger small mt-1">
+              {% for err in form.actions.errors %}{{ err }}{% endfor %}
+            </div>
+            {% endif %}
+            <small class="text-muted">Each selected action creates a separate permission entry for this resource.</small>
+          </div>
+
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger py-2">
+            {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+          </div>
+          {% endif %}
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill">
+              <i class="bi bi-plus-lg me-1"></i>Create Resource
+            </button>
+            <a href="{% url 'accounts:resource_list' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+  .action-option { cursor:pointer; transition: border-color .15s, background .15s; }
+  .action-option:has(input:checked) { border-color: var(--primary)!important; background:#f0f4ff; }
+  .action-badge {
+    display:inline-block;font-size:.68rem;font-weight:700;
+    padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.03em;
+  }
+  .action-VIEW    {background:#dbeafe;color:#1d4ed8}
+  .action-CREATE  {background:#dcfce7;color:#15803d}
+  .action-EDIT    {background:#fef9c3;color:#854d0e}
+  .action-DELETE  {background:#fee2e2;color:#b91c1c}
+  .action-EXPORT  {background:#ede9fe;color:#6d28d9}
+  .action-APPROVE {background:#ffedd5;color:#c2410c}
+</style>
+{% endblock %}

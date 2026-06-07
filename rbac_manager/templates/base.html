@@ -1,0 +1,158 @@
+{% load static rbac_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}RBAC Manager{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="{% static 'css/style.css' %}" rel="stylesheet">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ══════════════════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <a href="{% url 'accounts:dashboard' %}" class="sidebar-brand">
+    <div class="brand-icon"><i class="bi bi-shield-lock-fill text-white"></i></div>
+    <div class="brand-text">RBAC Manager<br><span class="brand-sub">Access Control System</span></div>
+  </a>
+
+  <!-- Main nav -->
+  <p class="sidebar-section">Main</p>
+  <ul class="sidebar-nav">
+    <li class="nav-item">
+      <a href="{% url 'accounts:dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <i class="bi bi-grid-1x2-fill nav-icon"></i> Dashboard
+      </a>
+    </li>
+  </ul>
+
+  <!-- Administration -->
+  {% if is_superuser or request.user|has_perm:'User Management:VIEW' or request.user|has_perm:'Role Management:VIEW' or request.user|has_perm:'Resource Management:VIEW' %}
+  <p class="sidebar-section">Administration</p>
+  <ul class="sidebar-nav">
+    {% if is_superuser or request.user|has_perm:'User Management:VIEW' %}
+    <li class="nav-item">
+      <a href="{% url 'accounts:user_list' %}" class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-people-fill nav-icon"></i> Users
+      </a>
+    </li>
+    {% endif %}
+    {% if is_superuser or request.user|has_perm:'Role Management:VIEW' %}
+    <li class="nav-item">
+      <a href="{% url 'accounts:role_list' %}" class="nav-link {% if 'role' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-person-badge-fill nav-icon"></i> Roles
+      </a>
+    </li>
+    {% endif %}
+    {% if is_superuser or request.user|has_perm:'Resource Management:VIEW' %}
+    <li class="nav-item">
+      <a href="{% url 'accounts:resource_list' %}" class="nav-link {% if 'resource' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-key-fill nav-icon"></i> Resources
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+  {% endif %}
+
+  <!-- Audit -->
+  {% if is_superuser or request.user|has_perm:'Access Logs:VIEW' or request.user|has_perm:'Violation Reports:VIEW' %}
+  <p class="sidebar-section">Audit &amp; Compliance</p>
+  <ul class="sidebar-nav">
+    {% if is_superuser or request.user|has_perm:'Access Logs:VIEW' %}
+    <li class="nav-item">
+      <a href="{% url 'accounts:access_logs' %}" class="nav-link {% if request.resolver_match.url_name == 'access_logs' %}active{% endif %}">
+        <i class="bi bi-journal-text nav-icon"></i> Access Logs
+      </a>
+    </li>
+    {% endif %}
+    {% if is_superuser or request.user|has_perm:'Violation Reports:VIEW' %}
+    <li class="nav-item">
+      <a href="{% url 'accounts:violation_logs' %}" class="nav-link {% if request.resolver_match.url_name == 'violation_logs' %}active{% endif %}">
+        <i class="bi bi-exclamation-triangle-fill nav-icon"></i>
+        Violations
+        {% if open_violations %}
+        <span class="badge bg-danger ms-auto">{{ open_violations }}</span>
+        {% endif %}
+      </a>
+    </li>
+    {% endif %}
+    {% if is_superuser or request.user|has_perm:'Access Logs:VIEW' %}
+    <li class="nav-item">
+      <a href="{% url 'accounts:reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+        <i class="bi bi-bar-chart-fill nav-icon"></i> Reports
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+  {% endif %}
+
+  <!-- Bottom user info -->
+  <div class="sidebar-user mt-auto">
+    <div class="user-avatar">{{ request.user.username|first|upper }}</div>
+    <div class="user-info">
+      <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+      <div class="user-role">
+        {% if is_superuser %}Super Admin{% else %}
+          {% with request.user.profile.roles.first as role %}{{ role.name|default:"No role" }}{% endwith %}
+        {% endif %}
+      </div>
+    </div>
+    <a href="{% url 'accounts:my_profile' %}" class="text-secondary ms-1" title="My Profile">
+      <i class="bi bi-person-circle"></i>
+    </a>
+    <a href="{% url 'accounts:logout' %}" class="text-secondary ms-1" title="Log out">
+      <i class="bi bi-box-arrow-right"></i>
+    </a>
+  </div>
+</aside>
+
+<!-- ═══ MAIN WRAPPER ═════════════════════════════════════════════════════ -->
+<div class="main-wrapper">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="page-title">{% block page_title %}Dashboard{% endblock %}</div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">{% block breadcrumb %}<li class="breadcrumb-item active">Home</li>{% endblock %}</ol>
+    </nav>
+    {% if open_violations %}
+    <a href="{% url 'accounts:violation_logs' %}" class="btn btn-sm btn-outline-danger position-relative ms-2">
+      <i class="bi bi-bell-fill"></i>
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ open_violations }}</span>
+    </a>
+    {% endif %}
+  </header>
+
+  <!-- Flash messages -->
+  <div class="px-4 pt-3">
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show" role="alert">
+      {% if msg.tags == 'error' %}<i class="bi bi-x-circle-fill me-2"></i>
+      {% elif msg.tags == 'success' %}<i class="bi bi-check-circle-fill me-2"></i>
+      {% elif msg.tags == 'warning' %}<i class="bi bi-exclamation-triangle-fill me-2"></i>
+      {% else %}<i class="bi bi-info-circle-fill me-2"></i>{% endif %}
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Page content -->
+  <main class="content-area">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="text-center py-3 text-muted-sm border-top" style="font-size:.75rem;background:#fff;">
+    RBAC Manager &copy; 2026 — Role-Based Access Control System | MBIT 506 Assignment
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

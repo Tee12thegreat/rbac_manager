@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% load rbac_tags %}
+
+{% block title %}{{ action }} Role — RBAC Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-shield-lock me-2"></i>{{ action }} Role{% if role %}: {{ role.name }}{% endif %}
+    </h1>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'accounts:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Roles</a></li>
+        <li class="breadcrumb-item active">{{ action }}</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="row g-4">
+
+    <!-- Left: basic info -->
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-info-circle me-2"></i>Role Details</div>
+        <div class="card-body">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Role Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                   value="{{ form.name.value|default:'' }}" required>
+            {% for err in form.name.errors %}<div class="invalid-feedback">{{ err }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description</label>
+            <textarea name="description" class="form-control" rows="3">{{ form.description.value|default:'' }}</textarea>
+          </div>
+
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="is_active" id="is_active"
+                     {% if form.is_active.value != False %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="is_active">Active Role</label>
+            </div>
+            <small class="text-muted">Inactive roles are stored but not enforced.</small>
+          </div>
+
+          <!-- SoD incompatible roles -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>Incompatible Roles (SoD)
+            </label>
+            <div class="border rounded p-2" style="max-height:180px;overflow-y:auto;">
+              {% for r in form.incompatible_roles.field.queryset %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="incompatible_roles"
+                       value="{{ r.pk }}" id="ir_{{ r.pk }}"
+                       {% if r.pk in form.incompatible_roles.value %}checked{% endif %}>
+                <label class="form-check-label small" for="ir_{{ r.pk }}">{{ r.name }}</label>
+              </div>
+              {% empty %}
+              <small class="text-muted">No other roles yet.</small>
+              {% endfor %}
+            </div>
+            <small class="text-muted">Users cannot hold this role AND any selected role simultaneously (SoD enforcement).</small>
+          </div>
+
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger py-2">
+            {% for err in form.non_field_errors %}<div><i class="bi bi-x-circle me-1"></i>{{ err }}</div>{% endfor %}
+          </div>
+          {% endif %}
+
+        </div>
+        <div class="card-footer d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-fill">
+            <i class="bi bi-check-lg me-1"></i>{% if role %}Save Changes{% else %}Create Role{% endif %}
+          </button>
+          <a href="{% url 'accounts:role_list' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: permissions grouped by resource -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-key me-2"></i>Permissions
+            <span class="badge bg-secondary ms-1" id="permCount">0</span> selected
+          </span>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleAll">Select All</button>
+        </div>
+        <div class="card-body" style="max-height:580px;overflow-y:auto;">
+          {% for resource in resources %}
+          {% if resource.permissions.all %}
+          <div class="perm-group mb-3">
+            <div class="perm-group-header d-flex align-items-center justify-content-between">
+              <span>
+                <i class="bi bi-folder2-open me-1"></i>{{ resource.name }}
+                <small class="text-muted ms-1">({{ resource.module }})</small>
+              </span>
+              <button type="button" class="btn btn-xs btn-outline-secondary toggle-grp"
+                      data-target="grp-{{ resource.pk }}">All</button>
+            </div>
+            <div class="perm-group-body" id="grp-{{ resource.pk }}">
+              {% for perm in resource.permissions.all %}
+              <div class="perm-check">
+                <input class="form-check-input perm-checkbox" type="checkbox"
+                       name="permissions" value="{{ perm.pk }}" id="perm_{{ perm.pk }}"
+                       {% if perm.pk in form.permissions.value %}checked{% endif %}>
+                <label class="form-check-label" for="perm_{{ perm.pk }}">
+                  <span class="action-badge action-{{ perm.action }}">{{ perm.action }}</span>
+                  {{ resource.name }}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          {% empty %}
+          <p class="text-muted text-center py-4">
+            <i class="bi bi-folder-x fs-4 d-block mb-2"></i>
+            No resources defined yet.
+            <a href="{% url 'accounts:resource_create' %}">Create a resource first.</a>
+          </p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /row -->
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Count selected permissions
+  function updateCount() {
+    const n = document.querySelectorAll('.perm-checkbox:checked').length;
+    document.getElementById('permCount').textContent = n;
+  }
+  document.querySelectorAll('.perm-checkbox').forEach(b => b.addEventListener('change', updateCount));
+  updateCount();
+
+  // Toggle per-resource group
+  document.querySelectorAll('.toggle-grp').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const boxes = document.querySelectorAll(`#${this.dataset.target} .perm-checkbox`);
+      const allChecked = [...boxes].every(b => b.checked);
+      boxes.forEach(b => { b.checked = !allChecked; });
+      updateCount();
+    });
+  });
+
+  // Select / Deselect all
+  let allSelected = false;
+  document.getElementById('toggleAll').addEventListener('click', function () {
+    allSelected = !allSelected;
+    document.querySelectorAll('.perm-checkbox').forEach(b => b.checked = allSelected);
+    this.textContent = allSelected ? 'Deselect All' : 'Select All';
+    updateCount();
+  });
+</script>
+<style>
+  .action-badge {
+    display:inline-block;font-size:.68rem;font-weight:700;
+    padding:1px 6px;border-radius:4px;text-transform:uppercase;
+    margin-right:4px;letter-spacing:.03em;
+  }
+  .action-VIEW    {background:#dbeafe;color:#1d4ed8}
+  .action-CREATE  {background:#dcfce7;color:#15803d}
+  .action-EDIT    {background:#fef9c3;color:#854d0e}
+  .action-DELETE  {background:#fee2e2;color:#b91c1c}
+  .action-EXPORT  {background:#ede9fe;color:#6d28d9}
+  .action-APPROVE {background:#ffedd5;color:#c2410c}
+  .btn-xs{font-size:.7rem;padding:2px 8px;}
+</style>
+{% endblock %}
